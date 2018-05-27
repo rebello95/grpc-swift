@@ -41,8 +41,8 @@ public struct CallResult: CustomStringConvertible {
     trailingMetadata = op.receivedTrailingMetadata()
   }
   
-  fileprivate init(success: Bool, statusCode: StatusCode, statusMessage: String?, resultData: Data?,
-                   initialMetadata: Metadata?, trailingMetadata: Metadata?) {
+  private init(success: Bool, statusCode: StatusCode, statusMessage: String?, resultData: Data?,
+               initialMetadata: Metadata?, trailingMetadata: Metadata?) {
     self.success = success
     self.statusCode = statusCode
     self.statusMessage = statusMessage
@@ -70,6 +70,9 @@ public struct CallResult: CustomStringConvertible {
     }
     return result
   }
+
+  static let cancelled = CallResult(success: false, statusCode: .cancelled, statusMessage: nil,
+                                    resultData: nil, initialMetadata: nil, trailingMetadata: nil)
   
   static let fakeOK = CallResult(success: true, statusCode: .ok, statusMessage: "OK", resultData: nil,
                                  initialMetadata: nil, trailingMetadata: nil)
