@@ -39,7 +39,6 @@ Pod::Spec.new do |s|
   s.source_files = 'Sources/SwiftGRPC/*.swift', 'Sources/SwiftGRPC/**/*.swift', 'Sources/CgRPC/shim/*.[ch]'
   s.public_header_files = 'Sources/CgRPC/shim/cgrpc.h'
 
-  s.dependency 'gRPC-Core', '~> 1.12.0'
-  s.dependency 'BoringSSL', '~> 10.0'
+  s.dependency 'gRPC-Core', '~> 1.19.0'
   s.dependency 'SwiftProtobuf', '~> 1.3.1'
 end
