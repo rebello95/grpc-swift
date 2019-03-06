@@ -33,14 +33,14 @@
 
 namespace grpc_core {
 
-UniquePtr<ServiceConfig> ServiceConfig::Create(const char* json) {
+RefCountedPtr<ServiceConfig> ServiceConfig::Create(const char* json) {
   UniquePtr<char> json_string(gpr_strdup(json));
   grpc_json* json_tree = grpc_json_parse_string(json_string.get());
   if (json_tree == nullptr) {
     gpr_log(GPR_INFO, "failed to parse JSON for service config");
     return nullptr;
   }
-  return MakeUnique<ServiceConfig>(std::move(json_string), json_tree);
+  return MakeRefCounted<ServiceConfig>(std::move(json_string), json_tree);
 }
 
 ServiceConfig::ServiceConfig(UniquePtr<char> json_string, grpc_json* json_tree)
@@ -65,8 +65,8 @@ const char* ServiceConfig::GetLoadBalancingPolicyName() const {
   return lb_policy_name;
 }
 
-size_t ServiceConfig::CountNamesInMethodConfig(grpc_json* json) {
-  size_t num_names = 0;
+int ServiceConfig::CountNamesInMethodConfig(grpc_json* json) {
+  int num_names = 0;
   for (grpc_json* field = json->child; field != nullptr; field = field->next) {
     if (field->key != nullptr && strcmp(field->key, "name") == 0) {
       if (field->type != GRPC_JSON_ARRAY) return -1;

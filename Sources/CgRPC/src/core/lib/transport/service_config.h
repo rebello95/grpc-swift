@@ -23,6 +23,7 @@
 #include <grpc/support/string_util.h>
 
 #include "src/core/lib/gprpp/inlined_vector.h"
+#include "src/core/lib/gprpp/ref_counted.h"
 #include "src/core/lib/gprpp/ref_counted_ptr.h"
 #include "src/core/lib/json/json.h"
 #include "src/core/lib/slice/slice_hash_table.h"
@@ -41,8 +42,7 @@
 //         }
 //       ],
 //       // remaining fields are optional.
-//       // see
-//       https://developers.google.com/protocol-buffers/docs/proto3#json
+//       // see https://developers.google.com/protocol-buffers/docs/proto3#json
 //       // for format details.
 //       "waitForReady": bool,
 //       "timeout": "duration_string",
@@ -54,11 +54,11 @@
 
 namespace grpc_core {
 
-class ServiceConfig {
+class ServiceConfig : public RefCounted<ServiceConfig> {
  public:
   /// Creates a new service config from parsing \a json_string.
   /// Returns null on parse error.
-  static UniquePtr<ServiceConfig> Create(const char* json);
+  static RefCountedPtr<ServiceConfig> Create(const char* json);
 
   ~ServiceConfig();
 
@@ -92,7 +92,7 @@ class ServiceConfig {
   /// Caller does NOT own a reference to the result.
   template <typename T>
   static RefCountedPtr<T> MethodConfigTableLookup(
-      const SliceHashTable<RefCountedPtr<T>>& table, grpc_slice path);
+      const SliceHashTable<RefCountedPtr<T>>& table, const grpc_slice& path);
 
  private:
   // So New() can call our private ctor.
@@ -103,7 +103,7 @@ class ServiceConfig {
   ServiceConfig(UniquePtr<char> json_string, grpc_json* json_tree);
 
   // Returns the number of names specified in the method config \a json.
-  static size_t CountNamesInMethodConfig(grpc_json* json);
+  static int CountNamesInMethodConfig(grpc_json* json);
 
   // Returns a path string for the JSON name object specified by \a json.
   // Returns null on error.
@@ -188,9 +188,9 @@ ServiceConfig::CreateMethodConfigTable(CreateValue<T> create_value) {
       // Find number of entries.
       for (grpc_json* method = field->child; method != nullptr;
            method = method->next) {
-        size_t count = CountNamesInMethodConfig(method);
+        int count = CountNamesInMethodConfig(method);
         if (count <= 0) return nullptr;
-        num_entries += count;
+        num_entries += static_cast<size_t>(count);
       }
       // Populate method config table entries.
       entries = static_cast<typename SliceHashTable<RefCountedPtr<T>>::Entry*>(
@@ -223,7 +223,7 @@ ServiceConfig::CreateMethodConfigTable(CreateValue<T> create_value) {
 
 template <typename T>
 RefCountedPtr<T> ServiceConfig::MethodConfigTableLookup(
-    const SliceHashTable<RefCountedPtr<T>>& table, grpc_slice path) {
+    const SliceHashTable<RefCountedPtr<T>>& table, const grpc_slice& path) {
   const RefCountedPtr<T>* value = table.Get(path);
   // If we didn't find a match for the path, try looking for a wildcard
   // entry (i.e., change "/service/method" to "/service/*").
@@ -240,6 +240,7 @@ RefCountedPtr<T> ServiceConfig::MethodConfigTableLookup(
     value = table.Get(wildcard_path);
     grpc_slice_unref_internal(wildcard_path);
     gpr_free(path_str);
+    if (value == nullptr) return nullptr;
   }
   return RefCountedPtr<T>(*value);
 }
