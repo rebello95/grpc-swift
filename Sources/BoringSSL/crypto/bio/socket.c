@@ -57,8 +57,6 @@
 
 #include <openssl/bio.h>
 
-#if !defined(OPENSSL_TRUSTY)
-
 #include <fcntl.h>
 #include <string.h>
 
@@ -202,5 +200,3 @@ BIO *BIO_new_socket(int fd, int close_flag) {
   BIO_set_fd(ret, fd, close_flag);
   return ret;
 }
-
-#endif  // OPENSSL_TRUSTY

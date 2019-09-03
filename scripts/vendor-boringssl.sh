@@ -49,11 +49,6 @@ EXCLUDES=(
 'example_*.c'
 )
 
-pushd $SRCROOT
-git fetch
-git checkout 4dfd5af70191b068aebe567b8e29ce108cee85ce
-popd
-
 for pattern in "${PATTERNS[@]}"
 do
   for i in $SRCROOT/$pattern; do

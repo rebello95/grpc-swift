@@ -56,7 +56,6 @@
 
 #include <openssl/x509.h>
 
-#include <inttypes.h>
 #include <string.h>
 
 #include <openssl/asn1.h>
@@ -64,7 +63,6 @@
 #include <openssl/obj.h>
 
 #include "charmap.h"
-#include "../asn1/asn1_locl.h"
 
 /*
  * ASN1_STRING_print_ex() and X509_NAME_print_ex(). Enhanced string and name
@@ -107,20 +105,22 @@ typedef int char_io (void *arg, const void *buf, int len);
 
 #define HEX_SIZE(type) (sizeof(type)*2)
 
-static int do_esc_char(uint32_t c, unsigned char flags, char *do_quotes,
+static int do_esc_char(unsigned long c, unsigned char flags, char *do_quotes,
                        char_io *io_ch, void *arg)
 {
     unsigned char chflgs, chtmp;
-    char tmphex[HEX_SIZE(uint32_t) + 3];
+    char tmphex[HEX_SIZE(long) + 3];
 
+    if (c > 0xffffffffL)
+        return -1;
     if (c > 0xffff) {
-        BIO_snprintf(tmphex, sizeof tmphex, "\\W%08" PRIX32, c);
+        BIO_snprintf(tmphex, sizeof tmphex, "\\W%08lX", c);
         if (!io_ch(arg, tmphex, 10))
             return -1;
         return 10;
     }
     if (c > 0xff) {
-        BIO_snprintf(tmphex, sizeof tmphex, "\\U%04" PRIX32, c);
+        BIO_snprintf(tmphex, sizeof tmphex, "\\U%04lX", c);
         if (!io_ch(arg, tmphex, 6))
             return -1;
         return 6;
@@ -178,46 +178,27 @@ static int do_buf(unsigned char *buf, int buflen,
                   int type, unsigned char flags, char *quotes, char_io *io_ch,
                   void *arg)
 {
-    int i, outlen, len, charwidth;
+    int i, outlen, len;
     unsigned char orflags, *p, *q;
-    uint32_t c;
+    unsigned long c;
     p = buf;
     q = buf + buflen;
     outlen = 0;
-    charwidth = type & BUF_TYPE_WIDTH_MASK;
-
-    switch (charwidth) {
-    case 4:
-        if (buflen & 3) {
-            OPENSSL_PUT_ERROR(ASN1, ASN1_R_INVALID_UNIVERSALSTRING);
-            return -1;
-        }
-        break;
-    case 2:
-        if (buflen & 1) {
-            OPENSSL_PUT_ERROR(ASN1, ASN1_R_INVALID_BMPSTRING);
-            return -1;
-        }
-        break;
-    default:
-        break;
-    }
-
     while (p != q) {
         if (p == buf && flags & ASN1_STRFLGS_ESC_2253)
             orflags = CHARTYPE_FIRST_ESC_2253;
         else
             orflags = 0;
-        switch (charwidth) {
+        switch (type & BUF_TYPE_WIDTH_MASK) {
         case 4:
-            c = ((uint32_t)*p++) << 24;
-            c |= ((uint32_t)*p++) << 16;
-            c |= ((uint32_t)*p++) << 8;
+            c = ((unsigned long)*p++) << 24;
+            c |= ((unsigned long)*p++) << 16;
+            c |= ((unsigned long)*p++) << 8;
             c |= *p++;
             break;
 
         case 2:
-            c = ((uint32_t)*p++) << 8;
+            c = ((unsigned long)*p++) << 8;
             c |= *p++;
             break;
 
@@ -229,7 +210,6 @@ static int do_buf(unsigned char *buf, int buflen,
             i = UTF8_getc(p, buflen, &c);
             if (i < 0)
                 return -1;      /* Invalid UTF8String */
-            buflen -= i;
             p += i;
             break;
         default:

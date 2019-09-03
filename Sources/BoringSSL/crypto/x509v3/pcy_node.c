@@ -83,7 +83,6 @@ X509_POLICY_NODE *tree_find_sk(STACK_OF(X509_POLICY_NODE) *nodes,
     n.valid_policy = (ASN1_OBJECT *)id;
     l.data = &n;
 
-    sk_X509_POLICY_NODE_sort(nodes);
     if (!sk_X509_POLICY_NODE_find(nodes, &idx, &l))
         return NULL;
 
@@ -108,7 +107,7 @@ X509_POLICY_NODE *level_find_node(const X509_POLICY_LEVEL *level,
 }
 
 X509_POLICY_NODE *level_add_node(X509_POLICY_LEVEL *level,
-                                 X509_POLICY_DATA *data,
+                                 const X509_POLICY_DATA *data,
                                  X509_POLICY_NODE *parent,
                                  X509_POLICY_TREE *tree)
 {

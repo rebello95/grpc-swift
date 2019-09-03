@@ -63,9 +63,6 @@
 #include <openssl/obj.h>
 #include <openssl/x509v3.h>
 
-#include "internal.h"
-
-
 static ASN1_OCTET_STRING *s2i_skey_id(X509V3_EXT_METHOD *method,
                                       X509V3_CTX *ctx, char *str);
 const X509V3_EXT_METHOD v3_skey_id = {
@@ -79,7 +76,7 @@ const X509V3_EXT_METHOD v3_skey_id = {
 
 char *i2s_ASN1_OCTET_STRING(X509V3_EXT_METHOD *method, ASN1_OCTET_STRING *oct)
 {
-    return x509v3_bytes_to_hex(oct->data, oct->length);
+    return hex_to_string(oct->data, oct->length);
 }
 
 ASN1_OCTET_STRING *s2i_ASN1_OCTET_STRING(X509V3_EXT_METHOD *method,
@@ -93,7 +90,7 @@ ASN1_OCTET_STRING *s2i_ASN1_OCTET_STRING(X509V3_EXT_METHOD *method,
         return NULL;
     }
 
-    if (!(oct->data = x509v3_hex_to_bytes(str, &length))) {
+    if (!(oct->data = string_to_hex(str, &length))) {
         M_ASN1_OCTET_STRING_free(oct);
         return NULL;
     }
