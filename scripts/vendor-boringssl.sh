@@ -27,6 +27,7 @@ rm -rf $DSTROOT/include
 rm -rf $DSTROOT/ssl
 rm -rf $DSTROOT/crypto
 rm -rf $DSTROOT/err_data.c
+rm -rf $DSTROOT/third_party
 
 PATTERNS=(
 'include/openssl/*.h'
@@ -38,8 +39,6 @@ PATTERNS=(
 'crypto/*/*.c'
 'crypto/*/*/*.h'
 'crypto/*/*/*.c'
-'third_party/fiat/*.h'
-'third_party/fiat/*.c'
 )
 
 EXCLUDES=(
