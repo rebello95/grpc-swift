@@ -107,45 +107,51 @@ char* BaseNode::RenderJsonString() {
 
 CallCountingHelper::CallCountingHelper() {
   num_cores_ = GPR_MAX(1, gpr_cpu_num_cores());
-  per_cpu_counter_data_storage_.reserve(num_cores_);
-  for (size_t i = 0; i < num_cores_; ++i) {
-    per_cpu_counter_data_storage_.emplace_back();
-  }
+  per_cpu_counter_data_storage_ = static_cast<AtomicCounterData*>(
+      gpr_zalloc(sizeof(AtomicCounterData) * num_cores_));
+}
+
+CallCountingHelper::~CallCountingHelper() {
+  gpr_free(per_cpu_counter_data_storage_);
 }
 
 void CallCountingHelper::RecordCallStarted() {
-  AtomicCounterData& data =
-      per_cpu_counter_data_storage_[ExecCtx::Get()->starting_cpu()];
-  data.calls_started.FetchAdd(1, MemoryOrder::RELAXED);
-  data.last_call_started_cycle.Store(gpr_get_cycle_counter(),
-                                     MemoryOrder::RELAXED);
+  gpr_atm_no_barrier_fetch_add(
+      &per_cpu_counter_data_storage_[grpc_core::ExecCtx::Get()->starting_cpu()]
+           .calls_started,
+      static_cast<gpr_atm>(1));
+  gpr_atm_no_barrier_store(
+      &per_cpu_counter_data_storage_[grpc_core::ExecCtx::Get()->starting_cpu()]
+           .last_call_started_millis,
+      (gpr_atm)ExecCtx::Get()->Now());
 }
 
 void CallCountingHelper::RecordCallFailed() {
-  per_cpu_counter_data_storage_[ExecCtx::Get()->starting_cpu()]
-      .calls_failed.FetchAdd(1, MemoryOrder::RELAXED);
+  gpr_atm_no_barrier_fetch_add(
+      &per_cpu_counter_data_storage_[grpc_core::ExecCtx::Get()->starting_cpu()]
+           .calls_failed,
+      static_cast<gpr_atm>(1));
 }
 
 void CallCountingHelper::RecordCallSucceeded() {
-  per_cpu_counter_data_storage_[ExecCtx::Get()->starting_cpu()]
-      .calls_succeeded.FetchAdd(1, MemoryOrder::RELAXED);
+  gpr_atm_no_barrier_fetch_add(
+      &per_cpu_counter_data_storage_[grpc_core::ExecCtx::Get()->starting_cpu()]
+           .calls_succeeded,
+      static_cast<gpr_atm>(1));
 }
 
 void CallCountingHelper::CollectData(CounterData* out) {
   for (size_t core = 0; core < num_cores_; ++core) {
-    AtomicCounterData& data = per_cpu_counter_data_storage_[core];
-
-    out->calls_started += data.calls_started.Load(MemoryOrder::RELAXED);
-    out->calls_succeeded +=
-        per_cpu_counter_data_storage_[core].calls_succeeded.Load(
-            MemoryOrder::RELAXED);
-    out->calls_failed += per_cpu_counter_data_storage_[core].calls_failed.Load(
-        MemoryOrder::RELAXED);
-    const gpr_cycle_counter last_call =
-        per_cpu_counter_data_storage_[core].last_call_started_cycle.Load(
-            MemoryOrder::RELAXED);
-    if (last_call > out->last_call_started_cycle) {
-      out->last_call_started_cycle = last_call;
+    out->calls_started += gpr_atm_no_barrier_load(
+        &per_cpu_counter_data_storage_[core].calls_started);
+    out->calls_succeeded += gpr_atm_no_barrier_load(
+        &per_cpu_counter_data_storage_[core].calls_succeeded);
+    out->calls_failed += gpr_atm_no_barrier_load(
+        &per_cpu_counter_data_storage_[core].calls_failed);
+    gpr_atm last_call = gpr_atm_no_barrier_load(
+        &per_cpu_counter_data_storage_[core].last_call_started_millis);
+    if (last_call > out->last_call_started_millis) {
+      out->last_call_started_millis = last_call;
     }
   }
 }
@@ -167,9 +173,8 @@ void CallCountingHelper::PopulateCallCounts(grpc_json* json) {
         json, json_iterator, "callsFailed", data.calls_failed);
   }
   if (data.calls_started != 0) {
-    gpr_timespec ts = gpr_convert_clock_type(
-        gpr_cycle_counter_to_time(data.last_call_started_cycle),
-        GPR_CLOCK_REALTIME);
+    gpr_timespec ts = grpc_millis_to_timespec(data.last_call_started_millis,
+                                              GPR_CLOCK_REALTIME);
     json_iterator =
         grpc_json_create_child(json_iterator, json, "lastCallStartedTimestamp",
                                gpr_format_timespec(ts), GRPC_JSON_STRING, true);
@@ -488,25 +493,26 @@ SocketNode::SocketNode(UniquePtr<char> local, UniquePtr<char> remote,
 
 void SocketNode::RecordStreamStartedFromLocal() {
   gpr_atm_no_barrier_fetch_add(&streams_started_, static_cast<gpr_atm>(1));
-  gpr_atm_no_barrier_store(&last_local_stream_created_cycle_,
-                           gpr_get_cycle_counter());
+  gpr_atm_no_barrier_store(&last_local_stream_created_millis_,
+                           (gpr_atm)ExecCtx::Get()->Now());
 }
 
 void SocketNode::RecordStreamStartedFromRemote() {
   gpr_atm_no_barrier_fetch_add(&streams_started_, static_cast<gpr_atm>(1));
-  gpr_atm_no_barrier_store(&last_remote_stream_created_cycle_,
-                           gpr_get_cycle_counter());
+  gpr_atm_no_barrier_store(&last_remote_stream_created_millis_,
+                           (gpr_atm)ExecCtx::Get()->Now());
 }
 
 void SocketNode::RecordMessagesSent(uint32_t num_sent) {
   gpr_atm_no_barrier_fetch_add(&messages_sent_, static_cast<gpr_atm>(num_sent));
-  gpr_atm_no_barrier_store(&last_message_sent_cycle_, gpr_get_cycle_counter());
+  gpr_atm_no_barrier_store(&last_message_sent_millis_,
+                           (gpr_atm)ExecCtx::Get()->Now());
 }
 
 void SocketNode::RecordMessageReceived() {
   gpr_atm_no_barrier_fetch_add(&messages_received_, static_cast<gpr_atm>(1));
-  gpr_atm_no_barrier_store(&last_message_received_cycle_,
-                           gpr_get_cycle_counter());
+  gpr_atm_no_barrier_store(&last_message_received_millis_,
+                           (gpr_atm)ExecCtx::Get()->Now());
 }
 
 grpc_json* SocketNode::RenderJson() {
@@ -539,22 +545,20 @@ grpc_json* SocketNode::RenderJson() {
   if (streams_started != 0) {
     json_iterator = grpc_json_add_number_string_child(
         json, json_iterator, "streamsStarted", streams_started);
-    gpr_cycle_counter last_local_stream_created_cycle =
-        gpr_atm_no_barrier_load(&last_local_stream_created_cycle_);
-    if (last_local_stream_created_cycle != 0) {
-      ts = gpr_convert_clock_type(
-          gpr_cycle_counter_to_time(last_local_stream_created_cycle),
-          GPR_CLOCK_REALTIME);
+    gpr_atm last_local_stream_created_millis =
+        gpr_atm_no_barrier_load(&last_local_stream_created_millis_);
+    if (last_local_stream_created_millis != 0) {
+      ts = grpc_millis_to_timespec(last_local_stream_created_millis,
+                                   GPR_CLOCK_REALTIME);
       json_iterator = grpc_json_create_child(
           json_iterator, json, "lastLocalStreamCreatedTimestamp",
           gpr_format_timespec(ts), GRPC_JSON_STRING, true);
     }
-    gpr_cycle_counter last_remote_stream_created_cycle =
-        gpr_atm_no_barrier_load(&last_remote_stream_created_cycle_);
-    if (last_remote_stream_created_cycle != 0) {
-      ts = gpr_convert_clock_type(
-          gpr_cycle_counter_to_time(last_remote_stream_created_cycle),
-          GPR_CLOCK_REALTIME);
+    gpr_atm last_remote_stream_created_millis =
+        gpr_atm_no_barrier_load(&last_remote_stream_created_millis_);
+    if (last_remote_stream_created_millis != 0) {
+      ts = grpc_millis_to_timespec(last_remote_stream_created_millis,
+                                   GPR_CLOCK_REALTIME);
       json_iterator = grpc_json_create_child(
           json_iterator, json, "lastRemoteStreamCreatedTimestamp",
           gpr_format_timespec(ts), GRPC_JSON_STRING, true);
@@ -574,9 +578,8 @@ grpc_json* SocketNode::RenderJson() {
   if (messages_sent != 0) {
     json_iterator = grpc_json_add_number_string_child(
         json, json_iterator, "messagesSent", messages_sent);
-    ts = gpr_convert_clock_type(
-        gpr_cycle_counter_to_time(
-            gpr_atm_no_barrier_load(&last_message_sent_cycle_)),
+    ts = grpc_millis_to_timespec(
+        gpr_atm_no_barrier_load(&last_message_sent_millis_),
         GPR_CLOCK_REALTIME);
     json_iterator =
         grpc_json_create_child(json_iterator, json, "lastMessageSentTimestamp",
@@ -586,9 +589,8 @@ grpc_json* SocketNode::RenderJson() {
   if (messages_received != 0) {
     json_iterator = grpc_json_add_number_string_child(
         json, json_iterator, "messagesReceived", messages_received);
-    ts = gpr_convert_clock_type(
-        gpr_cycle_counter_to_time(
-            gpr_atm_no_barrier_load(&last_message_received_cycle_)),
+    ts = grpc_millis_to_timespec(
+        gpr_atm_no_barrier_load(&last_message_received_millis_),
         GPR_CLOCK_REALTIME);
     json_iterator = grpc_json_create_child(
         json_iterator, json, "lastMessageReceivedTimestamp",

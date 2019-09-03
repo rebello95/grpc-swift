@@ -108,7 +108,7 @@ struct ManagedMemorySlice : public grpc_slice {
     return !grpc_slice_differs_refcounted(other, *this);
   }
   bool Equals(const char* buf, const size_t len) const {
-    return data.refcounted.length == len && buf != nullptr &&
+    return data.refcounted.length == len &&
            memcmp(buf, data.refcounted.bytes, len) == 0;
   }
 };
@@ -153,14 +153,10 @@ struct ExternallyManagedSlice : public UnmanagedMemorySlice {
 };
 
 struct StaticMetadataSlice : public ManagedMemorySlice {
-  StaticMetadataSlice(grpc_slice_refcount* ref, size_t length,
-                      const uint8_t* bytes) {
+  StaticMetadataSlice(grpc_slice_refcount* ref, size_t length, uint8_t* bytes) {
     refcount = ref;
     data.refcounted.length = length;
-    // NB: grpc_slice may or may not point to a static slice, but we are
-    // definitely pointing to static data here. Since we are not changing
-    // the underlying C-type, we need a const_cast here.
-    data.refcounted.bytes = const_cast<uint8_t*>(bytes);
+    data.refcounted.bytes = bytes;
   }
 };
 

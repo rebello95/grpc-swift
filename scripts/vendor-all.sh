@@ -29,18 +29,17 @@ set -euxo pipefail
 
 TMP_DIR=./tmp
 GRPC_VERSION="$1"
-GRPC_VERSION="update_boringssl"
 
-# mkdir -p $TMP_DIR
-# rm -rf $TMP_DIR/grpc
-# cd $TMP_DIR
+mkdir -p $TMP_DIR
+rm -rf $TMP_DIR/grpc
+cd $TMP_DIR
 
-# # Clone gRPC Core, update its submodules, and check out the specified version.
-# git clone git@github.com:jtattermusch/grpc.git
-# cd grpc
-# git submodule update --init --recursive
-# git checkout $GRPC_VERSION
-# cd ../..
+# Clone gRPC Core, update its submodules, and check out the specified version.
+git clone git@github.com:grpc/grpc.git
+cd grpc
+git submodule update --init --recursive
+git checkout $GRPC_VERSION
+cd ../..
 
 # Update the vendored version of BoringSSL (removing previous versions).
 ./vendor-boringssl.sh

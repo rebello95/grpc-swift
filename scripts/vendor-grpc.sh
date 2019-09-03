@@ -78,5 +78,5 @@ echo "DISABLING ARES"
 perl -pi -e 's/#define GRPC_ARES 1/#define GRPC_ARES 0/' $DSTROOT/CgRPC/include/grpc/impl/codegen/port_platform.h
 
 echo "COPYING roots.pem"
-echo "Please run 'swift run RootsEncoder > Sources/SwiftGRPC/Core/Roots.swift' to import the updated certificates."
+echo "Please run 'swift run RootsEncoder > Sources/SwiftGRPC/Core/Roots.swift' to import the updated certificates." 
 cp $TMP_DIR/grpc/etc/roots.pem $DSTASSETS/roots.pem
