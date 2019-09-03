@@ -66,97 +66,57 @@
 
 #include <openssl/ecdh.h>
 
-#include <limits.h>
 #include <string.h>
 
-#include <openssl/bn.h>
-#include <openssl/digest.h>
+#include <openssl/ec.h>
+#include <openssl/ec_key.h>
 #include <openssl/err.h>
 #include <openssl/mem.h>
+#include <openssl/sha.h>
 
-#include "../fipsmodule/ec/internal.h"
-#include "../internal.h"
+#include "../ec/internal.h"
 
 
-int ECDH_compute_key(void *out, size_t outlen, const EC_POINT *pub_key,
-                     const EC_KEY *priv_key,
-                     void *(*kdf)(const void *in, size_t inlen, void *out,
-                                  size_t *outlen)) {
+int ECDH_compute_key_fips(uint8_t *out, size_t out_len, const EC_POINT *pub_key,
+                          const EC_KEY *priv_key) {
   if (priv_key->priv_key == NULL) {
     OPENSSL_PUT_ERROR(ECDH, ECDH_R_NO_PRIVATE_VALUE);
-    return -1;
+    return 0;
   }
   const EC_SCALAR *const priv = &priv_key->priv_key->scalar;
-
-  BN_CTX *ctx = BN_CTX_new();
-  if (ctx == NULL) {
-    return -1;
-  }
-  BN_CTX_start(ctx);
-
-  int ret = -1;
-  size_t buflen = 0;
-  uint8_t *buf = NULL;
-
   const EC_GROUP *const group = EC_KEY_get0_group(priv_key);
-  EC_POINT *tmp = EC_POINT_new(group);
-  if (tmp == NULL) {
-    OPENSSL_PUT_ERROR(ECDH, ERR_R_MALLOC_FAILURE);
-    goto err;
+  if (EC_GROUP_cmp(group, pub_key->group, NULL) != 0) {
+    OPENSSL_PUT_ERROR(EC, EC_R_INCOMPATIBLE_OBJECTS);
+    return 0;
   }
 
-  if (!ec_point_mul_scalar(group, tmp, NULL, pub_key, priv, ctx)) {
+  EC_RAW_POINT shared_point;
+  uint8_t buf[EC_MAX_BYTES];
+  size_t buflen;
+  if (!ec_point_mul_scalar(group, &shared_point, &pub_key->raw, priv) ||
+      !ec_point_get_affine_coordinate_bytes(group, buf, NULL, &buflen,
+                                            sizeof(buf), &shared_point)) {
     OPENSSL_PUT_ERROR(ECDH, ECDH_R_POINT_ARITHMETIC_FAILURE);
-    goto err;
+    return 0;
   }
 
-  BIGNUM *x = BN_CTX_get(ctx);
-  if (!x) {
-    OPENSSL_PUT_ERROR(ECDH, ERR_R_MALLOC_FAILURE);
-    goto err;
+  switch (out_len) {
+    case SHA224_DIGEST_LENGTH:
+      SHA224(buf, buflen, out);
+      break;
+    case SHA256_DIGEST_LENGTH:
+      SHA256(buf, buflen, out);
+      break;
+    case SHA384_DIGEST_LENGTH:
+      SHA384(buf, buflen, out);
+      break;
+    case SHA512_DIGEST_LENGTH:
+      SHA512(buf, buflen, out);
+      break;
+    default:
+      OPENSSL_PUT_ERROR(ECDH, ECDH_R_UNKNOWN_DIGEST_LENGTH);
+      return 0;
   }
 
-  if (!EC_POINT_get_affine_coordinates_GFp(group, tmp, x, NULL, ctx)) {
-    OPENSSL_PUT_ERROR(ECDH, ECDH_R_POINT_ARITHMETIC_FAILURE);
-    goto err;
-  }
-
-  buflen = (EC_GROUP_get_degree(group) + 7) / 8;
-  buf = OPENSSL_malloc(buflen);
-  if (buf == NULL) {
-    OPENSSL_PUT_ERROR(ECDH, ERR_R_MALLOC_FAILURE);
-    goto err;
-  }
-
-  if (!BN_bn2bin_padded(buf, buflen, x)) {
-    OPENSSL_PUT_ERROR(ECDH, ERR_R_INTERNAL_ERROR);
-    goto err;
-  }
-
-  if (kdf != NULL) {
-    if (kdf(buf, buflen, out, &outlen) == NULL) {
-      OPENSSL_PUT_ERROR(ECDH, ECDH_R_KDF_FAILED);
-      goto err;
-    }
-  } else {
-    // no KDF, just copy as much as we can
-    if (buflen < outlen) {
-      outlen = buflen;
-    }
-    OPENSSL_memcpy(out, buf, outlen);
-  }
-
-  if (outlen > INT_MAX) {
-    OPENSSL_PUT_ERROR(ECDH, ERR_R_OVERFLOW);
-    goto err;
-  }
-
-  ret = (int)outlen;
-
-err:
-  OPENSSL_free(buf);
-  EC_POINT_free(tmp);
-  BN_CTX_end(ctx);
-  BN_CTX_free(ctx);
-  return ret;
+  return 1;
 }
