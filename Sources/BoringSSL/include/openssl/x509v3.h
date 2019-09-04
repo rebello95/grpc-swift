@@ -58,20 +58,10 @@
 #include <openssl/bio.h>
 #include <openssl/conf.h>
 #include <openssl/x509.h>
-#include <openssl/lhash.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-
-/* Legacy X.509 library.
- *
- * This header is part of OpenSSL's X.509 implementation. It is retained for
- * compatibility but otherwise underdocumented and not actively maintained. In
- * the future, a replacement library will be available. Meanwhile, minimize
- * dependencies on this header where possible. */
-
 
 /* Forward reference */
 struct v3_ext_method;
@@ -147,7 +137,7 @@ void *db;
 
 typedef struct v3_ext_method X509V3_EXT_METHOD;
 
-DEFINE_STACK_OF(X509V3_EXT_METHOD)
+DECLARE_STACK_OF(X509V3_EXT_METHOD)
 
 /* ext_flags values */
 #define X509V3_EXT_DYNAMIC	0x1
@@ -211,24 +201,22 @@ union {
 } d;
 } GENERAL_NAME;
 
-DEFINE_STACK_OF(GENERAL_NAME)
-DECLARE_ASN1_SET_OF(GENERAL_NAME)
-
 typedef STACK_OF(GENERAL_NAME) GENERAL_NAMES;
-
-DEFINE_STACK_OF(GENERAL_NAMES)
 
 typedef struct ACCESS_DESCRIPTION_st {
 	ASN1_OBJECT *method;
 	GENERAL_NAME *location;
 } ACCESS_DESCRIPTION;
 
-DEFINE_STACK_OF(ACCESS_DESCRIPTION)
-DECLARE_ASN1_SET_OF(ACCESS_DESCRIPTION)
-
 typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 
 typedef STACK_OF(ASN1_OBJECT) EXTENDED_KEY_USAGE;
+
+DECLARE_STACK_OF(GENERAL_NAME)
+DECLARE_ASN1_SET_OF(GENERAL_NAME)
+
+DECLARE_STACK_OF(ACCESS_DESCRIPTION)
+DECLARE_ASN1_SET_OF(ACCESS_DESCRIPTION)
 
 typedef struct DIST_POINT_NAME_st {
 int type;
@@ -263,7 +251,7 @@ int dp_reasons;
 
 typedef STACK_OF(DIST_POINT) CRL_DIST_POINTS;
 
-DEFINE_STACK_OF(DIST_POINT)
+DECLARE_STACK_OF(DIST_POINT)
 DECLARE_ASN1_SET_OF(DIST_POINT)
 
 struct AUTHORITY_KEYID_st {
@@ -279,7 +267,7 @@ typedef struct SXNET_ID_st {
 	ASN1_OCTET_STRING *user;
 } SXNETID;
 
-DEFINE_STACK_OF(SXNETID)
+DECLARE_STACK_OF(SXNETID)
 DECLARE_ASN1_SET_OF(SXNETID)
 
 typedef struct SXNET_st {
@@ -306,7 +294,7 @@ typedef struct POLICYQUALINFO_st {
 	} d;
 } POLICYQUALINFO;
 
-DEFINE_STACK_OF(POLICYQUALINFO)
+DECLARE_STACK_OF(POLICYQUALINFO)
 DECLARE_ASN1_SET_OF(POLICYQUALINFO)
 
 typedef struct POLICYINFO_st {
@@ -316,7 +304,7 @@ typedef struct POLICYINFO_st {
 
 typedef STACK_OF(POLICYINFO) CERTIFICATEPOLICIES;
 
-DEFINE_STACK_OF(POLICYINFO)
+DECLARE_STACK_OF(POLICYINFO)
 DECLARE_ASN1_SET_OF(POLICYINFO)
 
 typedef struct POLICY_MAPPING_st {
@@ -324,7 +312,7 @@ typedef struct POLICY_MAPPING_st {
 	ASN1_OBJECT *subjectDomainPolicy;
 } POLICY_MAPPING;
 
-DEFINE_STACK_OF(POLICY_MAPPING)
+DECLARE_STACK_OF(POLICY_MAPPING)
 
 typedef STACK_OF(POLICY_MAPPING) POLICY_MAPPINGS;
 
@@ -334,7 +322,7 @@ typedef struct GENERAL_SUBTREE_st {
 	ASN1_INTEGER *maximum;
 } GENERAL_SUBTREE;
 
-DEFINE_STACK_OF(GENERAL_SUBTREE)
+DECLARE_STACK_OF(GENERAL_SUBTREE)
 
 struct NAME_CONSTRAINTS_st {
 	STACK_OF(GENERAL_SUBTREE) *permittedSubtrees;
@@ -513,7 +501,7 @@ typedef struct x509_purpose_st {
 #define X509V3_ADD_DELETE		5L
 #define X509V3_ADD_SILENT		0x10
 
-DEFINE_STACK_OF(X509_PURPOSE)
+DECLARE_STACK_OF(X509_PURPOSE)
 
 DECLARE_ASN1_FUNCTIONS(BASIC_CONSTRAINTS)
 
@@ -612,17 +600,16 @@ OPENSSL_EXPORT GENERAL_NAME *v2i_GENERAL_NAME_ex(GENERAL_NAME *out,
 				  X509V3_CTX *ctx, CONF_VALUE *cnf, int is_nc);
 OPENSSL_EXPORT void X509V3_conf_free(CONF_VALUE *val);
 
-// X509V3_EXT_conf_nid contains the only exposed instance of an LHASH in our
-// public headers. The |conf| pointer must be NULL but cryptography.io wraps
-// this function so we cannot, yet, replace the type with a dummy struct.
 OPENSSL_EXPORT X509_EXTENSION *X509V3_EXT_conf_nid(LHASH_OF(CONF_VALUE) *conf, X509V3_CTX *ctx, int ext_nid, char *value);
-
 OPENSSL_EXPORT X509_EXTENSION *X509V3_EXT_nconf_nid(CONF *conf, X509V3_CTX *ctx, int ext_nid, char *value);
 OPENSSL_EXPORT X509_EXTENSION *X509V3_EXT_nconf(CONF *conf, X509V3_CTX *ctx, char *name, char *value);
 OPENSSL_EXPORT int X509V3_EXT_add_nconf_sk(CONF *conf, X509V3_CTX *ctx, char *section, STACK_OF(X509_EXTENSION) **sk);
 OPENSSL_EXPORT int X509V3_EXT_add_nconf(CONF *conf, X509V3_CTX *ctx, char *section, X509 *cert);
 OPENSSL_EXPORT int X509V3_EXT_REQ_add_nconf(CONF *conf, X509V3_CTX *ctx, char *section, X509_REQ *req);
 OPENSSL_EXPORT int X509V3_EXT_CRL_add_nconf(CONF *conf, X509V3_CTX *ctx, char *section, X509_CRL *crl);
+
+OPENSSL_EXPORT int X509V3_EXT_CRL_add_conf(LHASH_OF(CONF_VALUE) *conf, X509V3_CTX *ctx,
+			    char *section, X509_CRL *crl);
 
 OPENSSL_EXPORT int X509V3_add_value_bool_nf(char *name, int asn1_bool,
 			     STACK_OF(CONF_VALUE) **extlist);
@@ -666,6 +653,10 @@ OPENSSL_EXPORT int X509V3_EXT_free(int nid, void *ext_data);
 OPENSSL_EXPORT X509_EXTENSION *X509V3_EXT_i2d(int ext_nid, int crit, void *ext_struc);
 OPENSSL_EXPORT int X509V3_add1_i2d(STACK_OF(X509_EXTENSION) **x, int nid, void *value, int crit, unsigned long flags);
 
+char *hex_to_string(const unsigned char *buffer, long len);
+unsigned char *string_to_hex(const char *str, long *len);
+int name_cmp(const char *name, const char *cmp);
+
 OPENSSL_EXPORT void X509V3_EXT_val_prn(BIO *out, STACK_OF(CONF_VALUE) *val, int indent,
 								 int ml);
 OPENSSL_EXPORT int X509V3_EXT_print(BIO *out, X509_EXTENSION *ext, unsigned long flag, int indent);
@@ -679,11 +670,6 @@ OPENSSL_EXPORT int X509_supported_extension(X509_EXTENSION *ex);
 OPENSSL_EXPORT int X509_PURPOSE_set(int *p, int purpose);
 OPENSSL_EXPORT int X509_check_issued(X509 *issuer, X509 *subject);
 OPENSSL_EXPORT int X509_check_akid(X509 *issuer, AUTHORITY_KEYID *akid);
-
-OPENSSL_EXPORT uint32_t X509_get_extension_flags(X509 *x);
-OPENSSL_EXPORT uint32_t X509_get_key_usage(X509 *x);
-OPENSSL_EXPORT uint32_t X509_get_extended_key_usage(X509 *x);
-
 OPENSSL_EXPORT int X509_PURPOSE_get_count(void);
 OPENSSL_EXPORT X509_PURPOSE * X509_PURPOSE_get0(int idx);
 OPENSSL_EXPORT int X509_PURPOSE_get_by_sname(char *sname);
@@ -703,8 +689,8 @@ OPENSSL_EXPORT void X509_email_free(STACK_OF(OPENSSL_STRING) *sk);
 OPENSSL_EXPORT STACK_OF(OPENSSL_STRING) *X509_get1_ocsp(X509 *x);
 /* Flags for X509_check_* functions */
 
-/* Deprecated: this flag does nothing */
-#define X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT	0
+/* Always check subject name for host match even if subject alt names present */
+#define X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT	0x1
 /* Disable wildcard matching for dnsName fields and common name. */
 #define X509_CHECK_FLAG_NO_WILDCARDS	0x2
 /* Wildcards must not match a partial label. */
@@ -713,8 +699,6 @@ OPENSSL_EXPORT STACK_OF(OPENSSL_STRING) *X509_get1_ocsp(X509 *x);
 #define X509_CHECK_FLAG_MULTI_LABEL_WILDCARDS 0x8
 /* Constraint verifier subdomain patterns to match a single labels. */
 #define X509_CHECK_FLAG_SINGLE_LABEL_SUBDOMAINS 0x10
-/* Skip the subject common name fallback if subjectAltNames is missing. */
-#define X509_CHECK_FLAG_NEVER_CHECK_SUBJECT 0x20
 /*
  * Match reference identifiers starting with "." to any sub-domain.
  * This is a non-public flag, turned on implicitly when the subject
@@ -737,12 +721,13 @@ OPENSSL_EXPORT int X509V3_NAME_from_section(X509_NAME *nm, STACK_OF(CONF_VALUE)*
 						unsigned long chtype);
 
 OPENSSL_EXPORT void X509_POLICY_NODE_print(BIO *out, X509_POLICY_NODE *node, int indent);
-DEFINE_STACK_OF(X509_POLICY_NODE)
+DECLARE_STACK_OF(X509_POLICY_NODE)
 
 /* BEGIN ERROR CODES */
 /* The following lines are auto generated by the script mkerr.pl. Any changes
  * made after this point may be overwritten when the script is next run.
  */
+void ERR_load_X509V3_strings(void);
 
 
 #ifdef  __cplusplus
@@ -750,16 +735,19 @@ DEFINE_STACK_OF(X509_POLICY_NODE)
 
 extern "C++" {
 
-BSSL_NAMESPACE_BEGIN
+namespace bssl {
 
-BORINGSSL_MAKE_DELETER(ACCESS_DESCRIPTION, ACCESS_DESCRIPTION_free)
+BORINGSSL_MAKE_STACK_DELETER(DIST_POINT, DIST_POINT_free)
+BORINGSSL_MAKE_STACK_DELETER(GENERAL_NAME, GENERAL_NAME_free)
+// A STACK_OF(POLICYINFO) is also known as a CERTIFICATEPOLICIES.
+BORINGSSL_MAKE_STACK_DELETER(POLICYINFO, POLICYINFO_free)
+
 BORINGSSL_MAKE_DELETER(AUTHORITY_KEYID, AUTHORITY_KEYID_free)
 BORINGSSL_MAKE_DELETER(BASIC_CONSTRAINTS, BASIC_CONSTRAINTS_free)
 BORINGSSL_MAKE_DELETER(DIST_POINT, DIST_POINT_free)
 BORINGSSL_MAKE_DELETER(GENERAL_NAME, GENERAL_NAME_free)
-BORINGSSL_MAKE_DELETER(POLICYINFO, POLICYINFO_free)
 
-BSSL_NAMESPACE_END
+}  // namespace bssl
 
 }  /* extern C++ */
 #endif

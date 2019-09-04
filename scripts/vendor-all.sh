@@ -20,22 +20,22 @@
 # invoking their respective vendoring scripts in this directory.
 #
 
-if [ "$#" -ne 1 ]; then
-  echo "Usage: './vendor-all.sh v1.14.0' (or whatever the gRPC core version is)" >&2
-  exit 1
-fi
+# if [ "$#" -ne 1 ]; then
+#   echo "Usage: './vendor-all.sh v1.14.0' (or whatever the gRPC core version is)" >&2
+#   exit 1
+# fi
 
 set -euxo pipefail
 
 TMP_DIR=./tmp
-GRPC_VERSION="$1"
+GRPC_VERSION="update_boringssl"
 
 mkdir -p $TMP_DIR
 rm -rf $TMP_DIR/grpc
 cd $TMP_DIR
 
 # Clone gRPC Core, update its submodules, and check out the specified version.
-git clone git@github.com:grpc/grpc.git
+git clone git@github.com:jtattermusch/grpc.git
 cd grpc
 git submodule update --init --recursive
 git checkout $GRPC_VERSION

@@ -35,6 +35,7 @@
  * SUCH DAMAGE.
  */
 
+#include <stdio.h>
 #include <string.h>
 
 #include <openssl/conf.h>
@@ -44,7 +45,6 @@
 #include <openssl/x509v3.h>
 
 #include "../internal.h"
-#include "internal.h"
 
 
 static int i2r_pci(X509V3_EXT_METHOD *method, PROXY_CERT_INFO_EXTENSION *ext,
@@ -124,7 +124,7 @@ static int process_pci_value(CONF_VALUE *val,
         }
         if (strncmp(val->value, "hex:", 4) == 0) {
             unsigned char *tmp_data2 =
-                x509v3_hex_to_bytes(val->value + 4, &val_len);
+                string_to_hex(val->value + 4, &val_len);
 
             if (!tmp_data2) {
                 OPENSSL_PUT_ERROR(X509V3, X509V3_R_ILLEGAL_HEX_DIGIT);
@@ -153,6 +153,38 @@ static int process_pci_value(CONF_VALUE *val,
                 goto err;
             }
             OPENSSL_free(tmp_data2);
+        } else if (strncmp(val->value, "file:", 5) == 0) {
+            unsigned char buf[2048];
+            int n;
+            BIO *b = BIO_new_file(val->value + 5, "r");
+            if (!b) {
+                OPENSSL_PUT_ERROR(X509V3, ERR_R_BIO_LIB);
+                X509V3_conf_err(val);
+                goto err;
+            }
+            while ((n = BIO_read(b, buf, sizeof(buf))) > 0
+                   || (n == 0 && BIO_should_retry(b))) {
+                if (!n)
+                    continue;
+
+                tmp_data = OPENSSL_realloc((*policy)->data,
+                                           (*policy)->length + n + 1);
+
+                if (!tmp_data)
+                    break;
+
+                (*policy)->data = tmp_data;
+                OPENSSL_memcpy(&(*policy)->data[(*policy)->length], buf, n);
+                (*policy)->length += n;
+                (*policy)->data[(*policy)->length] = '\0';
+            }
+            BIO_free_all(b);
+
+            if (n < 0) {
+                OPENSSL_PUT_ERROR(X509V3, ERR_R_BIO_LIB);
+                X509V3_conf_err(val);
+                goto err;
+            }
         } else if (strncmp(val->value, "text:", 5) == 0) {
             val_len = strlen(val->value + 5);
             tmp_data = OPENSSL_realloc((*policy)->data,

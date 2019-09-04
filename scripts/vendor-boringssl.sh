@@ -51,11 +51,6 @@ EXCLUDES=(
 'example_*.c'
 )
 
-pushd $SRCROOT
-git fetch
-git checkout 4dfd5af70191b068aebe567b8e29ce108cee85ce
-popd
-
 for pattern in "${PATTERNS[@]}"
 do
   for i in $SRCROOT/$pattern; do
@@ -76,8 +71,8 @@ do
   find $DSTROOT -d -name "$exclude" -exec rm -rf {} \;
 done
 
-# echo "GENERATING err_data.c"
-# go run $SRCROOT/crypto/err/err_data_generate.go > $DSTROOT/crypto/err/err_data.c
+echo "GENERATING err_data.c"
+go run $SRCROOT/crypto/err/err_data_generate.go > $DSTROOT/crypto/err/err_data.c
 
 echo "DELETING crypto/fipsmodule/bcm.c"
 rm -f $DSTROOT/crypto/fipsmodule/bcm.c
@@ -85,4 +80,4 @@ rm -f $DSTROOT/crypto/fipsmodule/bcm.c
 #
 # edit the BoringSSL headers to disable dependency on assembly language helpers.
 #
-# perl -pi -e '$_ .= qq(\n#define OPENSSL_NO_ASM\n) if /#define OPENSSL_HEADER_BASE_H/' $DSTROOT/include/openssl/base.h
+perl -pi -e '$_ .= qq(\n#define OPENSSL_NO_ASM\n) if /#define OPENSSL_HEADER_BASE_H/' $DSTROOT/include/openssl/base.h
