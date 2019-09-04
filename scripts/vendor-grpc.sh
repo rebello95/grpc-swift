@@ -66,12 +66,19 @@ do
 done
 
 echo "MOVING upb headers to CgRPC/include"
-cp -R $DSTROOT/CgRPC/third_party/upb $DSTROOT/CgRPC/include/
-rm -rf $DSTROOT/CgRPC/third_party/upb
+mkdir -pv $DSTROOT/CgRPC/include/upb
+mv $DSTROOT/CgRPC/third_party/upb/upb/*.h $DSTROOT/CgRPC/include/upb/
 
-echo "MOVING upb generated headers to CgRPC/include"
-cp -R $DSTROOT/CgRPC/src/core/ext/upb-generated/ $DSTROOT/CgRPC/include/
-rm -rf $DSTROOT/CgRPC/src/core/ext/upb-generated
+# echo "MOVING upb headers to CgRPC"
+# cp -R $DSTROOT/CgRPC/third_party/upb/ $DSTROOT/CgRPC/
+# rm -rf $DSTROOT/CgRPC/third_party/upb
+
+# echo "MOVING upb generated headers to CgRPC/src"
+# cp -R $DSTROOT/CgRPC/src/core/ext/upb-generated/ $DSTROOT/CgRPC/src/
+# rm -rf $DSTROOT/CgRPC/src/core/ext/upb-generated
+
+echo "REMOVING stray import in xds.cc"
+perl -pi -e 's/#include \"include\/grpc\/support\/alloc\.h\"\n//' $DSTROOT/CgRPC/src/core/ext/filters/client_channel/lb_policy/xds/xds.cc
 
 echo "ADDING additional compiler flags to tsi/ssl_transport_security.cc"
 perl -pi -e 's/#define TSI_OPENSSL_ALPN_SUPPORT 1/#define TSI_OPENSSL_ALPN_SUPPORT 0/' $DSTROOT/CgRPC/src/core/tsi/ssl_transport_security.cc
