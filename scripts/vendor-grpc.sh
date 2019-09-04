@@ -65,9 +65,26 @@ do
 	cp $TMP_DIR/grpc/$src $dest
 done
 
-echo "MOVING upb headers to CgRPC/include"
-mkdir -pv $DSTROOT/CgRPC/include/upb
-mv $DSTROOT/CgRPC/third_party/upb/upb/*.h $DSTROOT/CgRPC/include/upb/
+mkdir -pv $DSTROOT/CgRPC/include/upb/
+for file in $(find "$DSTROOT/CgRPC/third_party/upb/upb/" \( -name "*.h" -o -name "*.inc" \)); do
+  mv $file $DSTROOT/CgRPC/include/upb/
+  # mv "$file" "${OUT}/$(basename ${dir})/$(basename ${file})"
+done
+
+# mv $DSTROOT/CgRPC/src/core/ext/upb-generated $DSTROOT/CgRPC/include/src
+# next_dir="$DSTROOT/CgRPC/src/core/ext/upb-generated"
+# for file in $(find $next_dir -name "*.h"); do
+#   path="{}"
+#   d=$(dirname "$path")
+#   mkdir -p "$d"
+#   cp "$file" "$DSTROOT/CgRPC/include/$d"
+#   # mv $file $DSTROOT/CgRPC/include/$file
+#   # mv "$file" "${OUT}/$(basename ${next_dir})/$(basename ${file})"
+# done
+
+# echo "MOVING upb headers to CgRPC/include"
+# mkdir -pv $DSTROOT/CgRPC/include/upb
+# mv $DSTROOT/CgRPC/third_party/upb/upb/*.h $DSTROOT/CgRPC/include/upb/
 
 # echo "MOVING upb headers to CgRPC"
 # cp -R $DSTROOT/CgRPC/third_party/upb/ $DSTROOT/CgRPC/
