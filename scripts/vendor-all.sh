@@ -35,10 +35,10 @@ rm -rf $TMP_DIR/grpc
 cd $TMP_DIR
 
 # Clone gRPC Core, update its submodules, and check out the specified version.
-git clone git@github.com:jtattermusch/grpc.git
+git clone git@github.com:jtattermusch/grpc.git --recursive
 cd grpc
-git submodule update --init --recursive
 git checkout $GRPC_VERSION
+git submodule update --init --recursive
 cd ../..
 
 # Update the vendored version of BoringSSL (removing previous versions).
