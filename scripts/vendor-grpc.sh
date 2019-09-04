@@ -54,6 +54,7 @@ do
 	dest_dir=$(dirname $dest)
 	mkdir -pv $dest_dir
 	cp $TMP_DIR/grpc/$src $dest
+	echo "Copying private: $src"
 done
 
 echo "COPYING gRPC source files"
@@ -70,6 +71,9 @@ perl -pi -e 's/\/\* #define PB_FIELD_16BIT 1 \*\//#define PB_FIELD_16BIT 1/' $DS
 
 echo "MOVING nanopb headers to CgRPC/include"
 mv $DSTROOT/CgRPC/third_party/nanopb/*.h $DSTROOT/CgRPC/include/
+
+echo "MOVING upb generated headers to CgRPC/include"
+mv $DSTROOT/CgRPC/src/core/ext/upb-generated $DSTROOT/CgRPC/include/
 
 echo "ADDING additional compiler flags to tsi/ssl_transport_security.cc"
 perl -pi -e 's/#define TSI_OPENSSL_ALPN_SUPPORT 1/#define TSI_OPENSSL_ALPN_SUPPORT 0/' $DSTROOT/CgRPC/src/core/tsi/ssl_transport_security.cc
