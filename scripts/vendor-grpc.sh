@@ -79,9 +79,6 @@ perl -pi -e 's/#define TSI_OPENSSL_ALPN_SUPPORT 1/#define TSI_OPENSSL_ALPN_SUPPO
 echo "DISABLING ARES"
 perl -pi -e 's/#define GRPC_ARES 1/#define GRPC_ARES 0/' $DSTROOT/CgRPC/include/grpc/impl/codegen/port_platform.h
 
-echo "REMOVING filter extensions"
-rm -rf $DSTROOT/CgRPC/src/core/ext/filters
-
 echo "COPYING roots.pem"
 echo "Please run 'swift run RootsEncoder > Sources/SwiftGRPC/Core/Roots.swift' to import the updated certificates."
 cp $TMP_DIR/grpc/etc/roots.pem $DSTASSETS/roots.pem
