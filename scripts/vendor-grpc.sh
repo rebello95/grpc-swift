@@ -30,10 +30,15 @@ DSTASSETS=../Assets
 # Remove previously-vendored code.
 #
 echo "REMOVING any previously-vendored gRPC code"
-rm -rf $DSTROOT/CgRPC/src
-rm -rf $DSTROOT/CgRPC/grpc
-rm -rf $DSTROOT/CgRPC/third_party
+rm -rf $DSTROOT/CgRPC/include/envoy
+rm -rf $DSTROOT/CgRPC/include/gogoproto
+rm -rf $DSTROOT/CgRPC/include/google
 rm -rf $DSTROOT/CgRPC/include/grpc
+rm -rf $DSTROOT/CgRPC/include/upb
+rm -rf $DSTROOT/CgRPC/include/validate
+rm -rf $DSTROOT/CgRPC/grpc
+rm -rf $DSTROOT/CgRPC/src
+rm -rf $DSTROOT/CgRPC/third_party
 
 #
 # Copy grpc headers and source files
@@ -68,31 +73,24 @@ done
 mkdir -pv $DSTROOT/CgRPC/include/upb/
 for file in $(find "$DSTROOT/CgRPC/third_party/upb/upb/" \( -name "*.h" -o -name "*.inc" \)); do
   mv $file $DSTROOT/CgRPC/include/upb/
-  # mv "$file" "${OUT}/$(basename ${dir})/$(basename ${file})"
 done
 
-# mv $DSTROOT/CgRPC/src/core/ext/upb-generated $DSTROOT/CgRPC/include/src
-# next_dir="$DSTROOT/CgRPC/src/core/ext/upb-generated"
-# for file in $(find $next_dir -name "*.h"); do
-#   path="{}"
-#   d=$(dirname "$path")
-#   mkdir -p "$d"
-#   cp "$file" "$DSTROOT/CgRPC/include/$d"
-#   # mv $file $DSTROOT/CgRPC/include/$file
-#   # mv "$file" "${OUT}/$(basename ${next_dir})/$(basename ${file})"
-# done
+mv "$DSTROOT/CgRPC/src/core/ext/upb-generated/src/proto/" "$DSTROOT/CgRPC/src/proto"
 
-# echo "MOVING upb headers to CgRPC/include"
-# mkdir -pv $DSTROOT/CgRPC/include/upb
-# mv $DSTROOT/CgRPC/third_party/upb/upb/*.h $DSTROOT/CgRPC/include/upb/
+tmp_generated=$DSTROOT/CgRPC/include/tmp_generated
+mkdir -pv $tmp_generated
+mv "$DSTROOT/CgRPC/src/core/ext/upb-generated" "$tmp_generated"
 
-# echo "MOVING upb headers to CgRPC"
-# cp -R $DSTROOT/CgRPC/third_party/upb/ $DSTROOT/CgRPC/
-# rm -rf $DSTROOT/CgRPC/third_party/upb
+mkdir $DSTROOT/CgRPC/src/upb-generated/
+for file in $(find "$tmp_generated" \( -name "*.c" -o -name "*.cc" \)); do
+  mv $file $DSTROOT/CgRPC/third_party/
+done
 
-# echo "MOVING upb generated headers to CgRPC/src"
-# cp -R $DSTROOT/CgRPC/src/core/ext/upb-generated/ $DSTROOT/CgRPC/src/
-# rm -rf $DSTROOT/CgRPC/src/core/ext/upb-generated
+mv "$tmp_generated/upb-generated/envoy" "$DSTROOT/CgRPC/include"
+mv "$tmp_generated/upb-generated/gogoproto" "$DSTROOT/CgRPC/include"
+mv "$tmp_generated/upb-generated/google" "$DSTROOT/CgRPC/include"
+mv "$tmp_generated/upb-generated/validate" "$DSTROOT/CgRPC/include"
+rm -rf "$tmp_generated"
 
 echo "REMOVING stray import in xds.cc"
 perl -pi -e 's/#include \"include\/grpc\/support\/alloc\.h\"\n//' $DSTROOT/CgRPC/src/core/ext/filters/client_channel/lb_policy/xds/xds.cc
